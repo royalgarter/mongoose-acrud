@@ -1,14 +1,8 @@
-/*	ACRUD: 		11111	31
-	Aggr: 		10000	16
-	Create: 	01000	8
-	Read: 		00100	4
-	Update: 	00010	2
-	Delete: 	00001	1
-*/
+var path = require('path');
 
 var ERR = {
-	API_WEAK: 'APIKEY IS NOT VALID',
-	AUTH_ERROR: 'AUTHENTICATION ERROR'
+	API_WEAK: 'APIKEY INVALID',
+	AUTH_ERROR: 'AUTHENTICATION MISSING'
 };
 
 var HELP_OBJ = {
@@ -31,6 +25,14 @@ var HELP_OBJ = {
 		"findid|updateid":"body.id",
 		"update|findoneandupdate":"body.q, body.u, body.o",
 		"aggregate":"body is whole aggregate object",
+	},
+	"levelKey": {
+		"ACRUD": "11111 = 31",
+		"Aggr": "10000 = 16",
+		"Create": "01000 = 8",
+		"Read": "00100 = 4",
+		"Update": "00010 = 2",
+		"Delete": "00001 = 1",
 	}
 };
 
@@ -108,24 +110,29 @@ var _parseDeepPop = function (obj) {
 	};
 }
 
-var ACRUD = {};
+var _A = {};
 
-ACRUD.OPTIONS = {
-	keystone: null,
-	express: null,
-	mongoose: null,
-	schemaFolder: null,
+_A.O = {};
+_A.CMD = {};
+
+_A.init = function(option, actionFunctions) {
+	option = option || {};
+
+	_A.O.route = option.route || '/acrud/:model/:action/:ressoon?';
+	_A.O.keystone = option.keystone || null;
+	_A.O.schemaFolder = option.schemaFolder || './schemas';
+	_A.O.schemaHash = option.schemaHash || {};
+	console.log('_A.O', JSON.stringify(_A.O));
+
+	_A.O.mongoose = option.mongoose || require('mongoose');
+	_A.O.deepPopulate = require('mongoose-deep-populate')(_A.O.mongoose);
+	_A.O.ObjectId = _A.O.mongoose.Types.ObjectId;
+
+	_A.OPTIONS = _A.O;
+	_A.CMD = actionFunctions;
 }
 
-ACRUD.init = function(option) {
-	ACRUD.OPTIONS.keystone = option.keystone || null;
-	ACRUD.OPTIONS.mongoose = option.mongoose || require('mongoose');
-	ACRUD.OPTIONS.schemaFolder = option.schemaFolder || './schemas/';
-	ACRUD.OPTIONS.deepPopulate = require('mongoose-deep-populate')(ACRUD.OPTIONS.mongoose);
-	ACRUD.OPTIONS.ObjectId = ACRUD.OPTIONS.mongoose.Types.ObjectId;
-}
-
-ACRUD.controller = function(req, res) {
+_A.controller = function(req, res) {
 
 	try {
 		// var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
@@ -135,14 +142,15 @@ ACRUD.controller = function(req, res) {
 
 		var action = req.params.action;
 		var model = req.params.model;
-		var root = req.params.root;
 		var resSoon = req.params.ressoon == 'true'  || req.params.ressoon == 1;
 
 		var body = req.body;
 		var sentAPPNAME = req.headers.APPNAME || req.headers.appname;
-		var sentAPIKEY = req.headers.authorization || body.apikey;
-		sentAPIKEY = '_' + sentAPIKEY + '_'
+		var sentAPIKEY = req.headers.authorization;
+		// sentAPIKEY = '_' + sentAPIKEY + '_'
 		var lvAPIKEY = ~~process.env[sentAPIKEY] || 0;
+
+		// console.log('sentAPIKEY, lvAPIKEY', sentAPIKEY, lvAPIKEY);
 
 		//**/console.log('body', body);
 		//**/console.log('root', root);
@@ -158,14 +166,16 @@ ACRUD.controller = function(req, res) {
 		var p = body.p; //populate
 		var dp = body.dp; //deep populate
 
-		var KSList = ACRUD.OPTIONS.keystone.list(model);
+		var KSList = _A.O.keystone ? _A.O.keystone.list(model) : null;
+		var Schema = _A.O.keystone ? KSList.schema : 
+						(_A.O.schemaHash[model] || require(path.join(_A.O.schemaFolder, model)));
 
 		if (dp) {
-			KSList.schema.plugin(ACRUD.OPTIONS.deepPopulate);
+			Schema.plugin(_A.O.deepPopulate);
 			dp = _parseDeepPop(dp);
 			console.log('dp=', JSON.stringify(dp));
 		}
-		var Model = KSList.model;
+		var Model = _A.O.keystone ? KSList.model : _A.O.mongoose.model(model, Schema);
 
 		var key = [model,action,q,s,sk,u,o,l,f,p].join('_');
 
@@ -187,8 +197,8 @@ ACRUD.controller = function(req, res) {
 		}
 
 		// /**/console.log('model='+model,'action='+action,'body='+reqID, JSON.stringify(body));
-
-		switch (action.toLowerCase()) {
+		var actionLow = action.toLowerCase();
+		switch (actionLow) {
 			case 'help':
 				return fnResult(null, HELP_OBJ);
 				break;
@@ -233,7 +243,7 @@ ACRUD.controller = function(req, res) {
 
 				if (!id) return res.json({err: 'ID ' + id + ' invalid'});
 
-				var query = Model.findOne({'_id': new ACRUD.OPTIONS.ObjectId(id)});
+				var query = Model.findOne({'_id': new _A.O.ObjectId(id)});
 
 				if (f) query.select(f);
 				if (p) query.populate(p);
@@ -290,7 +300,7 @@ ACRUD.controller = function(req, res) {
 				if (!id) return res.json({err: 'ID ' + id + ' invalid'});
 				if (!u) return res.json({err: 'Update ' + u + ' invalid'});
 
-				Model.findOneAndUpdate({'_id': new ACRUD.OPTIONS.ObjectId(id)}, u, o ? o : null, fnResult);
+				Model.findOneAndUpdate({'_id': new _A.O.ObjectId(id)}, u, o ? o : null, fnResult);
 				break;
 			case 'aggregate':
 				if (!(lvAPIKEY&4)) return res.json({err: ERR.API_WEAK});
@@ -309,6 +319,14 @@ ACRUD.controller = function(req, res) {
 				query.exec(fnResult);
 				break;
 			default:
+				if (_A.CMD && _A.CMD[actionLow]) {
+					return _A.CMD[actionLow](req, res, {
+						model: Model, 
+						authKey: sentAPIKEY,
+						levelKey: lvAPIKEY
+					});
+				}
+
 				return res.json({err: 'Action ' + action + ' not found'});
 		}
 	} catch (ex) {
@@ -317,4 +335,4 @@ ACRUD.controller = function(req, res) {
 	}
 };
 
-exports = module.exports = ACRUD; 
+exports = module.exports = _A; 
