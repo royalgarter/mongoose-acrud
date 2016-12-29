@@ -3,7 +3,7 @@ require('dotenv').load();
 
 const path = require('path');
 const mongoose = require('mongoose');
-mongoose.connect('mongodb://testuser:passtestacrud@candidate.36.mongolayer.com:10708/jmlog', err => {
+mongoose.connect('mongodb://testuser:passtestacrud@ds145848.mlab.com:45848/mongoose-acrud', err => {
 	console.log('mongoose.connect', err);
 });
 
