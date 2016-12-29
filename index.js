@@ -1,7 +1,3 @@
-var mongoose = require('mongoose');
-var deepPopulate = require('mongoose-deep-populate')(mongoose);
-var ObjectId = mongoose.Types.ObjectId;
-
 /*	ACRUD: 		11111	31
 	Aggr: 		10000	16
 	Create: 	01000	8
@@ -114,6 +110,21 @@ var _parseDeepPop = function (obj) {
 
 var ACRUD = {};
 
+ACRUD.OPTIONS = {
+	keystone: null,
+	express: null,
+	mongoose: null,
+	schemaFolder: null,
+}
+
+ACRUD.init = function(option) {
+	ACRUD.OPTIONS.keystone = option.keystone || null;
+	ACRUD.OPTIONS.mongoose = option.mongoose || require('mongoose');
+	ACRUD.OPTIONS.schemaFolder = option.schemaFolder || './schemas/';
+	ACRUD.OPTIONS.deepPopulate = require('mongoose-deep-populate')(ACRUD.OPTIONS.mongoose);
+	ACRUD.OPTIONS.ObjectId = ACRUD.OPTIONS.mongoose.Types.ObjectId;
+}
+
 ACRUD.controller = function(req, res) {
 
 	try {
@@ -147,9 +158,10 @@ ACRUD.controller = function(req, res) {
 		var p = body.p; //populate
 		var dp = body.dp; //deep populate
 
-		var KSList = keystone.list(model);
+		var KSList = ACRUD.OPTIONS.keystone.list(model);
+
 		if (dp) {
-			KSList.schema.plugin(deepPopulate);
+			KSList.schema.plugin(ACRUD.OPTIONS.deepPopulate);
 			dp = _parseDeepPop(dp);
 			console.log('dp=', JSON.stringify(dp));
 		}
@@ -221,7 +233,7 @@ ACRUD.controller = function(req, res) {
 
 				if (!id) return res.json({err: 'ID ' + id + ' invalid'});
 
-				var query = Model.findOne({'_id': new ObjectId(id)});
+				var query = Model.findOne({'_id': new ACRUD.OPTIONS.ObjectId(id)});
 
 				if (f) query.select(f);
 				if (p) query.populate(p);
@@ -278,7 +290,7 @@ ACRUD.controller = function(req, res) {
 				if (!id) return res.json({err: 'ID ' + id + ' invalid'});
 				if (!u) return res.json({err: 'Update ' + u + ' invalid'});
 
-				Model.findOneAndUpdate({'_id': new ObjectId(id)}, u, o ? o : null, fnResult);
+				Model.findOneAndUpdate({'_id': new ACRUD.OPTIONS.ObjectId(id)}, u, o ? o : null, fnResult);
 				break;
 			case 'aggregate':
 				if (!(lvAPIKEY&4)) return res.json({err: ERR.API_WEAK});
@@ -306,4 +318,3 @@ ACRUD.controller = function(req, res) {
 };
 
 exports = module.exports = ACRUD; 
-
