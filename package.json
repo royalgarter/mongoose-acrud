@@ -1,0 +1,17 @@
+{
+  "name": "Atadi-FI-Engine",
+  "version": "1.0.0",
+  "author": "Pham Thanh Tung",
+  "description": "",
+  "engines": {
+    "node": "6.*",
+    "npm": "3.*"
+  },
+  "scripts": {
+    "start": "node api.js"
+  },
+  "dependencies": {
+    "mongoose": "^4.7.5",
+    "mongoose-deep-populate": "^3.0.0"
+  }
+}
