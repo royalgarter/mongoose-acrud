@@ -114,13 +114,13 @@ Require fields per action:
 Create:
 
 ```javascript
-curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/json" -d '{"key":"akey","value":"avalue"}' "http://localhost:3000/acrud/TestModel/save"
+curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/json" -d '{"key":"akey","value":"avalue"}' "http://localhost:3000/acrud/<YOUR_MODELNAME_CASE_SENSITIVE>/save"
 ```
 
 Find:
 
 ```javascript
-curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/json" -d '{"q": {}}' "http://localhost:3000/acrud/TestModel/find"
+curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/json" -d '{"q": {}}' "http://localhost:3000/acrud/<YOUR_MODELNAME_CASE_SENSITIVE>/find"
 ```
 
 Update:
@@ -130,7 +130,7 @@ curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/jso
 	"q": {"key":"key"},
 	"u": {"value":"123456789"}
 }
-' "http://localhost:3000/acrud/TestModel/update"
+' "http://localhost:3000/acrud/<YOUR_MODELNAME_CASE_SENSITIVE>/update"
 ```
 
 Find with deep populate:
@@ -138,7 +138,7 @@ Find with deep populate:
 ```javascript
 curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/json" -d '{
   "q": {
-    "date": 20160815
+    "localDateInt": 20160815
   },
   "l": 2,
   "dp": {
@@ -146,28 +146,102 @@ curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/jso
     "select": "-_id code"
   }
 }
-' "http://localhost:3000/acrud/TestModel/update"
+' "http://localhost:3000/acrud/<YOUR_MODELNAME_CASE_SENSITIVE>/update"
 ```
 
 ## Deep Populate
+
+* Assume that your models are
+
+```javascript
+PlanningGood.add({
+  localDateInt: {
+    type: Number,
+    index: true
+  },
+  skedId: {
+    type: Types.Relationship,
+    ref: 'Sked',
+    many: false,
+    initial: true
+  },
+  aircraft: {
+    type: Types.Relationship,
+    ref: 'Aircraft',
+    many: false,
+    index: true
+  }
+});
+
+Sked.add({
+  skedId: {
+    type: String,
+    required: true,
+    initial: true,
+    index: true,
+    unique: true
+  },
+  aircraft: {
+    type: Types.Relationship,
+    ref: 'Aircraft',
+    index: true
+  },
+  flightNumber: {
+    type: Types.Relationship,
+    ref: 'Flight'
+  }
+});
+
+Aircraft.add({
+  code: {
+    type: String,
+    index: true,
+    initial: true,
+    required: true
+  }
+});
+
+Flight.add({
+  flightNumber: {
+    type: String,
+    required: true,
+    index: true,
+    initial: true
+  }
+});
+
+```
 
 "dp" fields could be
 
 * String (field that need to be populate, could also multi level)
 ```javascript
 "skedId"
+"skedId.attds" // skedId will be populated first, then come the skedId.attds
 ```
 * Single object that contain (path, select[optional]):  
 
 ```javascript
-{"path": "skedId", "select": "_id, code"}
+{
+	"path": "skedId", 
+	"select": "_id, code"
+}
 ```
 * Array of single object 
 
 ```javascript
 [
-	{"path": "skedId.flightNumber"}, // path could also multi level
-    {"path": "skedId", "select": "_id, code"}
+	{
+		"path": "skedId.aircraft",
+		"select": "code"
+	},
+	{
+		"path": "skedId.flightNumber",
+		"select": "flightNumber"
+	},
+	{
+		"path": "skedId.attds"
+	}
 ]
 ```
 
