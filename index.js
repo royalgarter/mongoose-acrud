@@ -114,7 +114,7 @@ const _parseDeepPop = obj => {
 };
 
 const _A = {
-	ROUTE: '/acrud/:model/:action/:ressoon?',
+	ROUTE: '/acrud/:model/:action/:ressoon?/:rootmodel?',
 	OPTIONS: {},
 	CMD: {},
 	ACL: {},
@@ -143,6 +143,7 @@ _A.controller = (req, res) => {
 
 	const action = req.params.action;
 	const model = req.params.model;
+	const rootmodel = req.params.rootmodel;
 	const resSoon = req.params.ressoon == 'true'  || req.params.ressoon == '1';
 
 	const body = req.body;
@@ -191,7 +192,7 @@ _A.controller = (req, res) => {
 			Model = KSList.model;
 		} break;
 		default:{
-			Schema = (_A.O.schemaHash[model] || require(path.join(_A.O.schemaFolder, model)));
+			Schema = (_A.O.schemaHash[model] || require(path.join(_A.O.schemaFolder, (rootmodel || model))));
 			if (dp) Schema.plugin(_A.O.deepPopulate);
 			Model = _A.O.mongoose.model(model, Schema);
 		}
