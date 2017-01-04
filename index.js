@@ -66,6 +66,17 @@ const _parseJSON = (obj, reviver) => {
 	}
 };
 
+const _parseBody = body => {
+
+	if (!body) return body;
+
+	const rg = /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*)?)Z/;
+	let obj = (typeof body == 'object') ? JSON.stringify(body) : body;
+	obj = (~obj.search(rg)) ? _parseJSON(obj, _reviverISODate) : body;
+
+	return obj;
+};
+
 const _parseDeepPop = obj => {
 
 	let resPath = [];
@@ -171,16 +182,16 @@ _A.controller = (req, res) => {
 		return fnResult(ERR.EAUTH);
 	}
 
-	const id = body.id; //_id
-	const q = body.q; //query
-	const s = body.s; //sort
-	const sk = body.sk; //skip
-	const u = body.u; //update
-	const o = body.o; //option
-	const l = body.l; //limit
-	const f = body.f; //field
-	const p = body.p; //populate
-	const dp = body.dp ? _parseDeepPop(body.dp) : null; //deep populate
+	const id = body.id; 
+	const q = _parseBody(body.q);
+	const s = body.s; 
+	const sk = body.sk; 
+	const u = _parseBody(body.u);
+	const o = body.o; 
+	const l = body.l; 
+	const f = body.f; 
+	const p = body.p; 
+	const dp = body.dp ? _parseDeepPop(body.dp) : null;
 
 	let Model = null, Schema = null;
 
@@ -228,7 +239,7 @@ _A.controller = (req, res) => {
 			break;
 		case 'find':
 			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
-			var query = Model.find(q);
+			let query = Model.find(q);
 			if (sk) query.skip(sk);
 			if (l) query.limit(l);
 			if (f) query.select(f);
@@ -242,7 +253,7 @@ _A.controller = (req, res) => {
 
 			if (!id) return res.json({err: `ID ${id} invalid`});
 
-			var query = Model.findOne({'_id': new ObjectId(id)});
+			let query = Model.findOne({'_id': new ObjectId(id)});
 
 			if (f) query.select(f);
 			if (p) query.populate(p);
@@ -253,7 +264,7 @@ _A.controller = (req, res) => {
 		case 'findone':
 			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
 
-			var query = Model.findOne(q);
+			let query = Model.findOne(q);
 
 			if (s) query.sort(s);
 			if (sk) query.skip(sk);
@@ -277,7 +288,7 @@ _A.controller = (req, res) => {
 		case 'count':
 			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
 
-			var query = Model.count(q);
+			let query = Model.count(q);
 
 			if (s) query.sort(s);
 			if (sk) query.skip(sk);
@@ -314,7 +325,7 @@ _A.controller = (req, res) => {
 			// console.log('### aggr=', JSON.stringify(aggr));
 			// console.log('### match=', typeof aggr[0]['$match']['createdAt']['$gt']);
 
-			var query = Model.aggregate(aggr);
+			let query = Model.aggregate(aggr);
 			query.exec(fnResult);
 			break;
 		default:
