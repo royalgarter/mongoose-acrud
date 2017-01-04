@@ -210,6 +210,7 @@ _A.controller = (req, res) => {
 	}
 
 	const actionLow = action.toLowerCase();
+	let query = null;
 	switch (actionLow) {
 		case 'help':
 			return fnResult(null, HELP_OBJ);
@@ -226,7 +227,7 @@ _A.controller = (req, res) => {
 					: fnResult(err, doc, !err && doc ? 1 : 0));
 
 			} else {
-				var doc = new Model(obj);
+				let doc = new Model(obj);
 				doc.save(resSoon ? fnVoid : fnResult);
 			}
 			/*RES_SOON*/if (resSoon) return fnResult(null, doc, 1);
@@ -239,13 +240,16 @@ _A.controller = (req, res) => {
 			break;
 		case 'find':
 			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
-			let query = Model.find(q);
+			
+			query = Model.find(q);
+			
 			if (sk) query.skip(sk);
 			if (l) query.limit(l);
 			if (f) query.select(f);
 			if (p) query.populate(p);
 			if (dp) query.deepPopulate(dp.path, dp.option);
 			if (s) query.sort(s);
+			
 			query.exec(fnResult);
 			break;
 		case 'findid':
@@ -253,7 +257,7 @@ _A.controller = (req, res) => {
 
 			if (!id) return res.json({err: `ID ${id} invalid`});
 
-			let query = Model.findOne({'_id': new ObjectId(id)});
+			query = Model.findOne({'_id': new ObjectId(id)});
 
 			if (f) query.select(f);
 			if (p) query.populate(p);
@@ -264,7 +268,7 @@ _A.controller = (req, res) => {
 		case 'findone':
 			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
 
-			let query = Model.findOne(q);
+			query = Model.findOne(q);
 
 			if (s) query.sort(s);
 			if (sk) query.skip(sk);
@@ -288,7 +292,7 @@ _A.controller = (req, res) => {
 		case 'count':
 			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
 
-			let query = Model.count(q);
+			query = Model.count(q);
 
 			if (s) query.sort(s);
 			if (sk) query.skip(sk);
@@ -315,17 +319,12 @@ _A.controller = (req, res) => {
 		case 'aggregate':
 			if (!(LEVEL_KEY&16)) return res.json({err: ERR.ELEVEL});
 
-			let aggr = body;
-			if (typeof body == 'string') {
-				aggr = _parseJSON(body, _reviverISODate);
-			} else if (typeof body == 'object') {
-				aggr = _parseJSON(JSON.stringify(body), _reviverISODate);
-			}
+			let aggr = _parseBody(body);
 
 			// console.log('### aggr=', JSON.stringify(aggr));
 			// console.log('### match=', typeof aggr[0]['$match']['createdAt']['$gt']);
 
-			let query = Model.aggregate(aggr);
+			query = Model.aggregate(aggr);
 			query.exec(fnResult);
 			break;
 		default:
