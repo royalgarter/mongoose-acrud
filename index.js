@@ -42,6 +42,8 @@ const HELP_OBJ = {
 const _reviverISODate = (key, value) => { // new Date().toISOString() = "2015-12-16T09:17:06.307Z"
 	if (typeof value != 'string') return value;
 
+	if (key === '$regex') return new RegExp(value);
+
 	let a = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*)?)Z$/.exec(value);
 	if (!a) return value;
 

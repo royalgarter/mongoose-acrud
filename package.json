@@ -5,7 +5,7 @@
   },
   "name": "mongoose-acrud",
   "description": "Mongoose ACRUD (Aggregate, Create, Read, Update, Delete) that supports deep populate & model based action permission",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "homepage": "https://github.com/royalgarter/mongoose-acrud",
   "repository": {
     "type": "git",
@@ -33,7 +33,7 @@
   "bugs": {
     "url": "https://github.com/royalgarter/mongoose-acrud/issues"
   },
-  "_id": "mongoose-acrud@1.0.6",
+  "_id": "mongoose-acrud@1.0.7",
   "_from": "mongoose-acrud@*"
 }
 

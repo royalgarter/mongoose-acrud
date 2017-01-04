@@ -18,8 +18,8 @@
 ```javascript
 const acrud = require('mongoose-acrud');
 acrud.init({
-	mongoose: mongoose,
-	schemaFolder: path.join(__dirname, 'schemas')
+  mongoose: mongoose,
+  schemaFolder: path.join(__dirname, 'schemas')
 });
 app.post(acrud.ROUTE, acrud.controller);
 ```
@@ -31,8 +31,8 @@ app.post(acrud.ROUTE, acrud.controller);
 const keystone = require('keystone');
 const acrud = require('mongoose-acrud');
 acrud.init({
-	keystone: keystone,
-	mongoose: keystone.get('mongoose'),
+  keystone: keystone,
+  mongoose: keystone.get('mongoose'),
 });
 app.post(acrud.ROUTE, acrud.controller);
 ```
@@ -68,11 +68,11 @@ curl -X POST -H "Authorization: MY_SUPER_APIKEY"
 ```javascript
 process.env.MY_SUPER_APIKEY=31
 acrud.init({
-	keystone: keystone,
-	mongoose: keystone.get('mongoose'),
+  keystone: keystone,
+  mongoose: keystone.get('mongoose'),
 }, null, {
-	MY_SUPER_APIKEY: {
-    	MyModel: 4 // Read Only
+  MY_SUPER_APIKEY: {
+      MyModel: 4 // Read Only
     }
     // Other models are full access
 });
@@ -84,23 +84,23 @@ acrud.init({
 curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/json"
 ```
 
-Available fields:
+**Available fields:**
 ```javascript
 "body": {
-	"id": "_id",
-	"q": "query",
-	"s": "sort",
-	"sk": "skip",
-	"u": "update",
-	"o": "option",
-	"l": "limit",
-	"f": "field",
-	"p": "populate",
-	"dp": "deep populate",
+  "id": "_id",
+  "q": "query",
+  "s": "sort",
+  "sk": "skip",
+  "u": "update",
+  "o": "option",
+  "l": "limit",
+  "f": "field",
+  "p": "populate",
+  "dp": "deep populate",
 },
 ```
 
-Require fields per action:
+**Require fields per action:**
 
 * save: body is whole object
 * remove: body.q
@@ -108,6 +108,20 @@ Require fields per action:
 * findid|updateid: body.id
 * update|findoneandupdate: body.q, body.u, body.o
 * aggregate: body is whole aggregate object
+
+**Notes:**
+
+* query, update, aggregate automatically parse with ISO Date String reviver (2015-12-16T09:17:06.307Z)
+* Regex is supported as below example format
+```javascript
+// Basic mongoose example
+{ "name" : { $regex: /Ghost/, $options: 'gi' } }
+
+// Use mongoose-acrud, value is replace with: new RegExp("Ghost")
+{
+  "q": { "name" : { $regex: "Ghost", $options: 'gi' } }
+}
+```
 
 ## Postman Example
 
@@ -127,8 +141,8 @@ Update:
 
 ```javascript
 curl -X POST -H "Authorization: <YOUR_APIKEY>" -H "Content-Type: application/json" -d '{
-	"q": {"key":"key"},
-	"u": {"value":"123456789"}
+  "q": {"key":"key"},
+  "u": {"value":"123456789"}
 }
 ' "http://localhost:3000/acrud/<YOUR_MODELNAME_CASE_SENSITIVE>/update"
 ```
@@ -223,25 +237,25 @@ Flight.add({
 
 ```javascript
 {
-	"path": "skedId", 
-	"select": "_id, code"
+  "path": "skedId", 
+  "select": "_id, code"
 }
 ```
 * Array of single object 
 
 ```javascript
 [
-	{
-		"path": "skedId.aircraft",
-		"select": "code"
-	},
-	{
-		"path": "skedId.flightNumber",
-		"select": "flightNumber"
-	},
-	{
-		"path": "skedId.attds"
-	}
+  {
+    "path": "skedId.aircraft",
+    "select": "code"
+  },
+  {
+    "path": "skedId.flightNumber",
+    "select": "flightNumber"
+  },
+  {
+    "path": "skedId.attds"
+  }
 ]
 ```
 
