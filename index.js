@@ -1,7 +1,9 @@
 'use strict';
 const path = require('path');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
+const Schema = mongoose.Schema;
 
 const ERR = {
 	ELEVEL: 'APIKEY INVALID',
@@ -164,7 +166,7 @@ _A.controller = (req, res) => {
 	const AUTH_KEY = req.headers.authorization;
 	const LEVEL_KEY = Number( _A.ACL[AUTH_KEY] ? (_A.ACL[AUTH_KEY][model] || 0) : (process.env[AUTH_KEY] || 0) );
 
-	// console.log('AUTH_KEY, LEVEL_KEY', AUTH_KEY, LEVEL_KEY);
+	console.log('AUTH_KEY, LEVEL_KEY', AUTH_KEY, LEVEL_KEY);
 	// console.log('req.params', JSON.stringify(req.params));
 	// console.log('req.body', JSON.stringify(req.body));
 
@@ -195,8 +197,152 @@ _A.controller = (req, res) => {
 	const p = body.p; 
 	const dp = body.dp ? _parseDeepPop(body.dp) : null;
 
-	let Model = null, Schema = null;
+	const fnExec = (Model, isNative) => {
+		const actionLow = action.toLowerCase();
+		let query = null;
+		switch (actionLow) {
+			case 'help':
+				return fnResult(null, HELP_OBJ);
+				break;
+			case 'save':
+				if (!(LEVEL_KEY&8)) return res.json({err: ERR.ELEVEL});
 
+				const obj = body.toObject ? body.toObject() : body;
+				if (obj._id) {
+					const mrId = obj._id;
+					delete obj._id;delete obj.__v;
+					Model.findOneAndUpdate({_id: mrId}, obj, {new: true, upsert: true}, (err, doc) => resSoon
+						? fnVoid(err, doc, !err && doc ? 1 : 0)
+						: fnResult(err, doc, !err && doc ? 1 : 0));
+
+				} else {
+					let doc = new Model(obj);
+					doc.save(resSoon ? fnVoid : fnResult);
+				}
+				/*RES_SOON*/if (resSoon) return fnResult(null, doc, 1);
+				break;
+			case 'remove':
+				if (!(LEVEL_KEY&1)) return res.json({err: ERR.ELEVEL});
+
+				Model.remove(q, resSoon ? fnVoid : fnResult);
+				/*RES_SOON*/if (resSoon) return fnResult(null, 1);
+				break;
+			case 'find':
+				if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
+				
+				query = Model.find(q);
+				
+				if (sk) query.skip(sk);
+				if (l) query.limit(l);
+				if (f) query.select(f);
+				if (p) query.populate(p);
+				if (dp) query.deepPopulate(dp.path, dp.option);
+				if (s) query.sort(s);
+				
+				if (isNative) query.toArray(fnResult)
+				else query.exec(fnResult);
+				break;
+			case 'findid':
+				if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
+
+				if (!id) return res.json({err: `ID ${id} invalid`});
+
+				if (isNative) Model.findOne({'_id': new ObjectId(id)}, fnResult);
+				else {
+					query = Model.findOne({'_id': new ObjectId(id)});
+
+					if (f) query.select(f);
+					if (p) query.populate(p);
+					if (dp) query.deepPopulate(dp.path, dp.option);
+
+					query.exec(fnResult);
+				}
+				break;
+			case 'findone':
+				if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
+
+				if (isNative) Model.findOne(q, fnResult);
+				else {
+					query = Model.findOne(q);
+
+					if (s) query.sort(s);
+					if (sk) query.skip(sk);
+					if (l) query.limit(l);
+					if (f) query.select(f);
+					if (p) query.populate(p);
+					if (dp) query.deepPopulate(dp.path, dp.option);
+
+					query.exec(fnResult);
+				}
+				break;
+			case 'findoneandupdate':
+				if (!(LEVEL_KEY&2)) return res.json({err: ERR.ELEVEL});
+
+				if (!u) return res.json({err: `Update ${u} invalid`});
+
+				const opt = o ? o : {'new': true};
+				opt.new = true;
+
+				Model.findOneAndUpdate(q, u, opt, fnResult);
+				break;
+			case 'count':
+				if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
+
+				if (isNative) Model.count(q, fnResult);
+				else {
+					query = Model.count(q);
+
+					if (s) query.sort(s);
+					if (sk) query.skip(sk);
+					if (l) query.limit(l);
+					if (f) query.select(f);
+
+					query.exec(fnResult);
+				}
+				break;
+			case 'update':
+				if (!(LEVEL_KEY&2)) return res.json({err: ERR.ELEVEL});
+
+				if (!u) return res.json({err: `Update ${u} invalid`});
+				Model.update(q, u, o ? o : null, resSoon ? fnVoid : fnResult);
+				/*RES_SOON*/if (resSoon) return fnResult(null, 1);
+				break;
+			case 'updateid':
+				if (!(LEVEL_KEY&2)) return res.json({err: ERR.ELEVEL});
+
+				if (!id) return res.json({err: `ID ${id} invalid`});
+				if (!u) return res.json({err: `Update ${u} invalid`});
+
+				Model.findOneAndUpdate({'_id': new ObjectId(id)}, u, o ? o : null, fnResult);
+				break;
+			case 'aggregate':
+				if (!(LEVEL_KEY&16)) return res.json({err: ERR.ELEVEL});
+
+				let aggr = _parseBody(body);
+
+				// console.log('### aggr=', JSON.stringify(aggr));
+				// console.log('### match=', typeof aggr[0]['$match']['createdAt']['$gt']);
+
+				if (isNative) Model.aggregate(aggr, fnResult);
+				else {
+					query = Model.aggregate(aggr);
+					query.exec(fnResult);
+				}
+				break;
+			default:
+				if (_A.CMD && _A.CMD[actionLow]) {
+					return _A.CMD[actionLow](req, res, {
+						model: Model, 
+						authKey: AUTH_KEY,
+						levelKey: LEVEL_KEY
+					});
+				}
+
+				return res.json({err: `Action ${action} not found`});
+		}
+	}
+
+	let Model = null, Schema = null;
 	switch (true) {
 		case (!!_A.O.keystone): {
 			const KSList = _A.O.keystone.list(model);
@@ -205,140 +351,26 @@ _A.controller = (req, res) => {
 			Model = KSList.model;
 		} break;
 		default:{
-			Schema = (_A.O.schemaHash[model] || require(path.join(_A.O.schemaFolder, (rootmodel || model))));
-			if (dp) Schema.plugin(_A.O.deepPopulate);
-			Model = _A.O.mongoose.model(model, Schema);
-		}
-	}
+			Schema = _A.O.schemaHash[model];
 
-	const actionLow = action.toLowerCase();
-	let query = null;
-	switch (actionLow) {
-		case 'help':
-			return fnResult(null, HELP_OBJ);
-			break;
-		case 'save':
-			if (!(LEVEL_KEY&8)) return res.json({err: ERR.ELEVEL});
-
-			const obj = body.toObject ? body.toObject() : body;
-			if (obj._id) {
-				const mrId = obj._id;
-				delete obj._id;delete obj.__v;
-				Model.findOneAndUpdate({_id: mrId}, obj, {new: true, upsert: true}, (err, doc) => resSoon
-					? fnVoid(err, doc, !err && doc ? 1 : 0)
-					: fnResult(err, doc, !err && doc ? 1 : 0));
-
+			if (!Schema) {
+				let pathSchema = path.join(_A.O.schemaFolder, (rootmodel || model));
+				if (fs.existsSync(pathSchema)) {
+					Schema = require(pathSchema);
+					if (dp) Schema.plugin(_A.O.deepPopulate);
+					Model = _A.O.mongoose.model(model, Schema);
+					return fnExec(Model);
+				} else {
+					return _A.O.mongoose.connection.db.collection(model, function (err, collection){
+						if (collection) return fnExec(collection, true);
+					});	
+				}
 			} else {
-				let doc = new Model(obj);
-				doc.save(resSoon ? fnVoid : fnResult);
+				if (dp) Schema.plugin(_A.O.deepPopulate);
+				Model = _A.O.mongoose.model(model, Schema);
+				return fnExec(Model);
 			}
-			/*RES_SOON*/if (resSoon) return fnResult(null, doc, 1);
-			break;
-		case 'remove':
-			if (!(LEVEL_KEY&1)) return res.json({err: ERR.ELEVEL});
-
-			Model.remove(q, resSoon ? fnVoid : fnResult);
-			/*RES_SOON*/if (resSoon) return fnResult(null, 1);
-			break;
-		case 'find':
-			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
-			
-			query = Model.find(q);
-			
-			if (sk) query.skip(sk);
-			if (l) query.limit(l);
-			if (f) query.select(f);
-			if (p) query.populate(p);
-			if (dp) query.deepPopulate(dp.path, dp.option);
-			if (s) query.sort(s);
-			
-			query.exec(fnResult);
-			break;
-		case 'findid':
-			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
-
-			if (!id) return res.json({err: `ID ${id} invalid`});
-
-			query = Model.findOne({'_id': new ObjectId(id)});
-
-			if (f) query.select(f);
-			if (p) query.populate(p);
-			if (dp) query.deepPopulate(dp.path, dp.option);
-
-			query.exec(fnResult);
-			break;
-		case 'findone':
-			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
-
-			query = Model.findOne(q);
-
-			if (s) query.sort(s);
-			if (sk) query.skip(sk);
-			if (l) query.limit(l);
-			if (f) query.select(f);
-			if (p) query.populate(p);
-			if (dp) query.deepPopulate(dp.path, dp.option);
-
-			query.exec(fnResult);
-			break;
-		case 'findoneandupdate':
-			if (!(LEVEL_KEY&2)) return res.json({err: ERR.ELEVEL});
-
-			if (!u) return res.json({err: `Update ${u} invalid`});
-
-			const opt = o ? o : {'new': true};
-			opt.new = true;
-
-			Model.findOneAndUpdate(q, u, opt, fnResult);
-			break;
-		case 'count':
-			if (!(LEVEL_KEY&4)) return res.json({err: ERR.ELEVEL});
-
-			query = Model.count(q);
-
-			if (s) query.sort(s);
-			if (sk) query.skip(sk);
-			if (l) query.limit(l);
-			if (f) query.select(f);
-
-			query.exec(fnResult);
-			break;
-		case 'update':
-			if (!(LEVEL_KEY&2)) return res.json({err: ERR.ELEVEL});
-
-			if (!u) return res.json({err: `Update ${u} invalid`});
-			Model.update(q, u, o ? o : null, resSoon ? fnVoid : fnResult);
-			/*RES_SOON*/if (resSoon) return fnResult(null, 1);
-			break;
-		case 'updateid':
-			if (!(LEVEL_KEY&2)) return res.json({err: ERR.ELEVEL});
-
-			if (!id) return res.json({err: `ID ${id} invalid`});
-			if (!u) return res.json({err: `Update ${u} invalid`});
-
-			Model.findOneAndUpdate({'_id': new ObjectId(id)}, u, o ? o : null, fnResult);
-			break;
-		case 'aggregate':
-			if (!(LEVEL_KEY&16)) return res.json({err: ERR.ELEVEL});
-
-			let aggr = _parseBody(body);
-
-			// console.log('### aggr=', JSON.stringify(aggr));
-			// console.log('### match=', typeof aggr[0]['$match']['createdAt']['$gt']);
-
-			query = Model.aggregate(aggr);
-			query.exec(fnResult);
-			break;
-		default:
-			if (_A.CMD && _A.CMD[actionLow]) {
-				return _A.CMD[actionLow](req, res, {
-					model: Model, 
-					authKey: AUTH_KEY,
-					levelKey: LEVEL_KEY
-				});
-			}
-
-			return res.json({err: `Action ${action} not found`});
+		}
 	}
 };
 
