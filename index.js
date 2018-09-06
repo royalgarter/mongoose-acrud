@@ -355,7 +355,7 @@ _A.controller = (req, res) => {
 
 			if (!Schema) {
 				let pathSchema = path.join(_A.O.schemaFolder, (rootmodel || model));
-				if (fs.existsSync(pathSchema)) {
+				if (fs.existsSync(pathSchema+'.js') || fs.existsSync(pathSchema+'.coffee')) {
 					Schema = require(pathSchema);
 					if (dp) Schema.plugin(_A.O.deepPopulate);
 					Model = _A.O.mongoose.model(model, Schema);
