@@ -16,7 +16,7 @@
     "test": "node test.js"
   },
   "dependencies": {
-    "mongoose": "^4.7.5",
+    "mongoose": ">=5.7.5",
     "mongoose-deep-populate": "^3.0.0"
   },
   "devDependencies": {
